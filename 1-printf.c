@@ -1,51 +1,75 @@
+#include <stdarg.h>
 #include "main.h"
 
-/**
- * _printf - prints and input into the standard output
- * @format: the format string
- * Return: number of bytes printed
- */
-
-int _printf(const char *format, ...)
-
+typedef struct
 {
-	int sum = 0;
-	va_list ap;
-	char *p, *start;
+    int l_modifier;
+    int h_modifier;
+    int width;
+    int precision;
+    char conversion;
+} params_t;
 
-	params_t params = PARAMS_INIT;
+void init_params(params_t *);
+int get_conversion(char, params_t *, va_list);
 
-	va_start(ap, format);
+int my_printf(const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    params_t params;
+    init_params(&params);
+    int sum = 0;
 
-	if (!format || (format[0] == '%' && !format[1]))/* checking for NULL char */
-		return (-1);
-	if (format[0] == '%' && format[1] == ' ' && !format[2])
-		return (-1);
-	for (p = (char *)format; *p; p++)
-	{
-		init_params(&params, ap);
-		if (*p != '%')/*checking for the % specifier*/
-		{
-			sum += _putchar(*p);
-			continue;
-		}
-		start = p;
-		p++;
-		while (get_flag(p, &params)) /* while char at p is flag character */
-		{
-			p++; /* next character */
-		}
-		p = get_width(p, &params, ap);
-		p = get_precision(p, &params, ap);
-		if (get_modifier(p, &params))
-			p++;
-		if (!get_specifier(p))
-			sum += print_from_to(start, p,
-					params.l_modifier || params.h_modifier ? p - 1 : 0);
-		else
-			sum += get_print_func(p, ap, &params);
-	}
-	_putchar(BUF_FLUSH);
-	va_end(ap);
-	return (sum);
+    for (const char *p = format; *p; p++)
+    {
+        if (*p != '%')
+        {
+            putchar(*p);
+            sum++;
+            continue;
+        }
+        p++;
+        if (*p == '%')
+        {
+            putchar('%');
+            sum++;
+            continue;
+        }
+        init_params(&params);
+        p += get_conversion(*p, &params, ap);
+        sum += handle_format(&params, ap);
+    }
+    va_end(ap);
+    return sum;
 }
+
+void init_params(params_t *params)
+{
+    params->l_modifier = 0;
+    params->h_modifier = 0;
+    params->width = 0;
+    params->precision = 0;
+    params->conversion = 0;
+}
+
+int get_conversion(char c, params_t *params, va_list ap)
+{
+    switch (c)
+    {
+    case 'c':
+        putchar(va_arg(ap, int));
+        return 0;
+    case 's':
+        puts(va_arg(ap, char *));
+        return 0;
+    case '%':
+        putchar('%');
+        return 0;
+    default:
+        return 0;
+    }
+}
+
+int handle_format(params_t *params, va_list ap)
+{
